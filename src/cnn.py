@@ -73,7 +73,8 @@ class LogSpectrogram(nn.Module):
         B, C, T = x.shape
         s = torch.stft(x.reshape(B * C, T).float(), self.n_fft, self.hop, window=self.window,
                        center=True, return_complex=True)
-        p = torch.log(s.abs().pow(2)[:, :self.n_freq] + 1e-6)
+        # power = re^2 + im^2 (avoids complex abs(), whose CUDA kernel is compiled at run time)
+        p = torch.log(torch.view_as_real(s[:, :self.n_freq]).pow(2).sum(-1) + 1e-6)
         p = p.reshape(B, C, self.n_freq, -1)
         mu = p.mean(dim=(1, 2, 3), keepdim=True)
         sd = p.std(dim=(1, 2, 3), keepdim=True)
